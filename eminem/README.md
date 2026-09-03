@@ -10,7 +10,7 @@ Na pasta `eminem`, execute:
 docker compose up -d --build
 ```
 
-O MongoDB fica em `localhost:27017` e a API em `http://localhost:3001`. O banco recebe produtos iniciais na primeira subida. O volume `mongodb_data` mantém os dados entre reinicializações.
+O MongoDB fica em `localhost:27017` e a aplicação completa (frontend + API) em `http://localhost:3001` — o backend serve o build do React e expõe as rotas `/api/*`. O banco recebe produtos iniciais na primeira subida. O volume `mongodb_data` mantém os dados entre reinicializações.
 
 ## Desenvolvimento local
 

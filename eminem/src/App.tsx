@@ -5,7 +5,7 @@ import './App.css'
 type Product = { id: string; title: string; price: number; category: string; thumbnail: string }
 type ProductForm = Omit<Product, 'id'>
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api/products'
+const API_URL = import.meta.env.VITE_API_URL ?? '/api/products'
 const emptyForm: ProductForm = { title: '', price: 0, category: 'Merch', thumbnail: '' }
 const fallbackProducts: Product[] = [
   { id: 'local-1', title: 'The Eminem Show Tee', price: 34.99, category: 'Apparel', thumbnail: eminem },
@@ -16,7 +16,11 @@ const fallbackProducts: Product[] = [
 
 async function requestApi<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options })
-  if (!response.ok) throw new Error('API request failed')
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null)
+    throw new Error(errorBody?.error ?? `Falha na requisicao (HTTP ${response.status})`)
+  }
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
 
@@ -40,7 +44,12 @@ function App() {
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setSaving(true); setNotice('')
+    event.preventDefault()
+    if (editingId?.startsWith('local-')) {
+      setNotice('Este produto veio do catalogo local (API offline) e nao pode ser atualizado. Verifique se a API/MongoDB estao rodando e recarregue a pagina.')
+      return
+    }
+    setSaving(true); setNotice('')
     const method = editingId ? 'PUT' : 'POST'
     const url = editingId ? `${API_URL}/${editingId}` : API_URL
     try {
@@ -48,16 +57,26 @@ function App() {
       const product = { ...form, id: editingId ?? saved.id }
       setProducts((current) => editingId ? current.map((item) => item.id === editingId ? product : item) : [product, ...current])
       resetForm(); setNotice(editingId ? 'Produto atualizado com sucesso.' : 'Produto criado com sucesso.')
-    } catch { setNotice('Nao foi possivel salvar. Tente novamente.') } finally { setSaving(false) }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido'
+      setNotice(`Nao foi possivel salvar: ${message}`)
+    } finally { setSaving(false) }
   }
 
   async function removeProduct(id: string) {
+    if (id.startsWith('local-')) {
+      setNotice('Este produto veio do catalogo local (API offline) e nao pode ser removido. Verifique se a API/MongoDB estao rodando e recarregue a pagina.')
+      return
+    }
     try {
       await requestApi(`${API_URL}/${id}`, { method: 'DELETE' })
       setProducts((current) => current.filter((product) => product.id !== id))
       if (editingId === id) resetForm()
       setNotice('Produto removido do catalogo.')
-    } catch { setNotice('Nao foi possivel remover o produto.') }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido'
+      setNotice(`Nao foi possivel remover: ${message}`)
+    }
   }
 
   function startEditing(product: Product) {

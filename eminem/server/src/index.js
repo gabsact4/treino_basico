@@ -2,6 +2,11 @@ import 'dotenv/config'
 import cors from 'cors'
 import express from 'express'
 import mongoose from 'mongoose'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const distDir = path.join(__dirname, '..', '..', 'dist')
 
 const app = express()
 const port = Number(process.env.PORT || 3001)
@@ -67,6 +72,12 @@ app.delete('/api/products/:id', async (request, response, next) => {
     if (!product) return response.status(404).json({ error: 'Product not found' })
     response.status(204).end()
   } catch (error) { next(error) }
+})
+
+app.use(express.static(distDir))
+
+app.get(/^(?!\/api).*/, (_request, response, next) => {
+  response.sendFile(path.join(distDir, 'index.html'), (error) => { if (error) next(error) })
 })
 
 app.use((error, _request, response, _next) => {
